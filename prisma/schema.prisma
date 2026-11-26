@@ -1,0 +1,496 @@
+// tandrust.pk - Healthcare Platform Database Schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  PATIENT
+  PROVIDER
+  CONTENT_EDITOR
+  CLINICAL_REVIEWER
+  PROVIDER_STAFF
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum VerificationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  NEEDS_INFO
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+  RESCHEDULED
+}
+
+enum ContentStatus {
+  DRAFT
+  IN_REVIEW
+  PUBLISHED
+  ARCHIVED
+}
+
+enum UrgencyLevel {
+  LOW
+  MODERATE
+  HIGH
+  EMERGENCY
+}
+
+enum FacilityType {
+  HOSPITAL
+  CLINIC
+  PHARMACY
+  LABORATORY
+  DENTAL
+  EYE_CARE
+  MENTAL_HEALTH
+  PHYSIOTHERAPY
+  MATERNITY
+  REHABILITATION
+}
+
+model User {
+  id            String    @id @default(uuid())
+  name          String
+  email         String    @unique
+  passwordHash  String
+  phone         String?
+  role          Role      @default(PATIENT)
+  language      String    @default("en") // "en" | "ur"
+  city          String?
+  province      String?
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  profile       UserProfile?
+  provider      Provider?
+  appointments  Appointment[] @relation("PatientAppointments")
+  savedArticles SavedArticle[]
+  savedProviders SavedProvider[]
+  notifications Notification[]
+  consents      ConsentRecord[]
+  documents     PatientDocument[]
+  familyMembers FamilyProfile[]
+  auditLogs     AuditLog[]
+
+  @@index([email])
+  @@index([role])
+}
+
+model UserProfile {
+  id                 String   @id @default(uuid())
+  userId             String   @unique
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dateOfBirth        DateTime?
+  gender             String?
+  bloodGroup         String?
+  address            String?
+  emergencyContact   String?
+  allergies          String?
+  chronicConditions  String?
+  notificationEmail  Boolean  @default(true)
+  notificationSms    Boolean  @default(false)
+  updatedAt          DateTime @updatedAt
+}
+
+model ConsentRecord {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  consentType String   // "TERMS", "PRIVACY", "DATA_PROCESSING", "TELEHEALTH"
+  granted    Boolean  @default(true)
+  ipAddress  String?
+  userAgent  String?
+  timestamp  DateTime @default(now())
+
+  @@index([userId])
+}
+
+model Provider {
+  id                 String             @id @default(uuid())
+  userId             String?            @unique
+  user               User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
+  title              String             @default("Dr.") // "Dr.", "Prof. Dr.", "Assoc. Prof."
+  fullName           String
+  slug               String             @unique
+  pmcNumber          String?            // Pakistan Medical Commission / PMDC registration
+  specialty          String
+  subSpecialties     String?
+  experienceYears    Int                @default(5)
+  qualifications     String             // e.g. "MBBS, FCPS, MRCP"
+  bio                String
+  consultationFee    Int                @default(2000) // PKR
+  rating             Float              @default(4.9)
+  reviewCount        Int                @default(12)
+  isVerified         Boolean            @default(true)
+  verificationStatus VerificationStatus @default(APPROVED)
+  verificationNotes  String?
+  telehealthEnabled  Boolean            @default(true)
+  phone              String?
+  email              String?
+  clinicAddress      String
+  area               String
+  city               String
+  province           String
+  facilityId         String?
+  facility           Facility?          @relation(fields: [facilityId], references: [id])
+  isDemonstration    Boolean            @default(false)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  availabilities     ProviderAvailability[]
+  appointments       Appointment[]
+  savedByUsers       SavedProvider[]
+
+  @@index([city])
+  @@index([specialty])
+  @@index([verificationStatus])
+}
+
+model ProviderAvailability {
+  id           String   @id @default(uuid())
+  providerId   String
+  provider     Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  dayOfWeek    Int      // 0 = Sunday, 1 = Monday, ... 6 = Saturday
+  startTime    String   // e.g. "09:00"
+  endTime      String   // e.g. "17:00"
+  slotDuration Int      @default(30) // minutes
+  isAvailable  Boolean  @default(true)
+
+  @@index([providerId, dayOfWeek])
+}
+
+model Facility {
+  id              String       @id @default(uuid())
+  name            String
+  slug            String       @unique
+  type            FacilityType
+  description     String?
+  address         String
+  area            String
+  city            String
+  district        String?
+  province        String
+  phone           String
+  emergencyPhone  String?
+  email           String?
+  openingHours    String       @default("24 Hours / 7 Days")
+  isEmergency24x7 Boolean      @default(true)
+  isVerified      Boolean      @default(true)
+  latitude        Float?
+  longitude       Float?
+  isDemonstration Boolean      @default(false)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  providers       Provider[]
+  appointments    Appointment[]
+
+  @@index([city])
+  @@index([type])
+}
+
+model Appointment {
+  id                 String            @id @default(uuid())
+  patientId          String
+  patient            User              @relation("PatientAppointments", fields: [patientId], references: [id], onDelete: Cascade)
+  providerId         String
+  provider           Provider          @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  facilityId         String?
+  facility           Facility?         @relation(fields: [facilityId], references: [id])
+  serviceName        String            @default("Consultation")
+  date               String            // Format YYYY-MM-DD
+  timeSlot           String            // e.g. "10:00 AM"
+  status             AppointmentStatus @default(CONFIRMED)
+  patientName        String
+  patientPhone       String
+  patientEmail       String
+  notes              String?
+  cancellationReason String?
+  fee                Int               @default(2000) // PKR
+  isPaid             Boolean           @default(false)
+  isTelehealth       Boolean           @default(false)
+  telehealthLink     String?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  // Strict constraint preventing double booking for same provider at same date and slot unless cancelled
+  @@unique([providerId, date, timeSlot], name: "provider_slot_unique")
+  @@index([patientId])
+  @@index([providerId])
+  @@index([date])
+}
+
+model HealthArticle {
+  id            String        @id @default(uuid())
+  title         String
+  slug          String        @unique
+  urduTitle     String?
+  summary       String
+  urduSummary   String?
+  content       String        // Markdown or rich text
+  category      String        // e.g. "LIVE_WELL", "FAMILY_HEALTH", "CONDITIONS", "NEWS"
+  subCategory   String?       // e.g. "eat-well", "pregnancy", "mental-wellbeing"
+  tags          String?       // comma-separated tags
+  coverImage    String?
+  status        ContentStatus @default(PUBLISHED)
+  readTime      Int           @default(5)
+  authorName    String        @default("tandrust.pk Editorial Board")
+  authorRole    String        @default("Medical Contributor")
+  reviewerName  String        @default("Dr. Tariq Mahmood, FCPS")
+  reviewerRole  String        @default("Consultant Physician, Clinical Review Board")
+  reviewDate    DateTime      @default(now())
+  isFeatured    Boolean       @default(false)
+  references    String?       // authoritative sources & PMDC/WHO guidelines
+  publishedAt   DateTime      @default(now())
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  savedByUsers  SavedArticle[]
+
+  @@index([category])
+  @@index([subCategory])
+  @@index([status])
+}
+
+model Condition {
+  id                String   @id @default(uuid())
+  name              String
+  slug              String   @unique
+  urduName          String?
+  category          String   @default("Common Conditions")
+  overview          String
+  symptomsList      String   // JSON or Markdown bullets
+  causes            String
+  riskFactors       String?
+  diagnosis         String
+  treatments        String
+  selfCare          String
+  prevention        String
+  whenToSeeDoctor   String
+  whenUrgent        String
+  references        String?
+  reviewerName      String   @default("Dr. Ayesha Malik, MBBS, FCPS")
+  reviewDate        DateTime @default(now())
+  isDemonstration   Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([slug])
+  @@index([name])
+}
+
+model Symptom {
+  id                String       @id @default(uuid())
+  name              String
+  slug              String       @unique
+  urduName          String?
+  description       String
+  commonCauses      String
+  selfCareTips      String
+  urgencyLevel      UrgencyLevel @default(MODERATE)
+  immediateCareSign String
+  relatedConditions String?      // comma-separated condition slugs
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  @@index([slug])
+}
+
+model Treatment {
+  id              String   @id @default(uuid())
+  name            String
+  slug            String   @unique
+  category        String   @default("Procedure")
+  description     String
+  procedureSteps  String
+  recoveryInfo    String
+  risksAndBenefits String
+  preparationInfo String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([slug])
+}
+
+model Medicine {
+  id                   String   @id @default(uuid())
+  name                 String
+  slug                 String   @unique
+  genericName          String
+  brandNames           String   // comma-separated common brands in Pakistan (e.g. Panadol, Calpol)
+  category             String   // e.g. Analgesic, Antibiotic, Antihypertensive
+  approvedUses         String
+  formulations         String   // Tablets, Syrup, Injection
+  safetyInfo           String
+  sideEffects          String
+  seriousSideEffects   String?
+  precautions          String
+  interactions         String?
+  storageInstructions  String   @default("Store below 30°C in a dry place away from direct sunlight.")
+  prescriptionRequired Boolean  @default(false)
+  regulatorySource     String   @default("DRAP (Drug Regulatory Authority of Pakistan)")
+  reviewDate           DateTime @default(now())
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([slug])
+  @@index([name])
+  @@index([genericName])
+}
+
+model VaccinationInfo {
+  id                   String   @id @default(uuid())
+  title                String
+  slug                 String   @unique
+  urduTitle            String?
+  targetAgeGroup       String   // e.g. "At Birth", "6 Weeks", "9 Months", "Adolescents"
+  diseasePrevented     String   // e.g. "Polio, Tuberculosis, Hepatitis B, Measles"
+  dosesRequired        String   // e.g. "3 Doses + Booster"
+  scheduleGuidance     String
+  nationalProgramNotes String   @default("Available free of cost under Pakistan EPI (Expanded Programme on Immunisation).")
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([slug])
+}
+
+model SavedArticle {
+  id        String        @id @default(uuid())
+  userId    String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  articleId String
+  article   HealthArticle @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  savedAt   DateTime      @default(now())
+
+  @@unique([userId, articleId])
+}
+
+model SavedProvider {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  providerId String
+  provider   Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  savedAt    DateTime @default(now())
+
+  @@unique([userId, providerId])
+}
+
+model PatientDocument {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title      String
+  category   String   // "LAB_REPORT", "PRESCRIPTION", "DISCHARGE_SUMMARY", "IMAGING"
+  fileType   String   // e.g. "application/pdf", "image/jpeg"
+  fileSize   Int      // in bytes
+  fileName   String
+  filePath   String?
+  notes      String?
+  isPrivate  Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+}
+
+model FamilyProfile {
+  id           String    @id @default(uuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name         String
+  relationship String    // "Spouse", "Child", "Parent", "Sibling", "Other"
+  dateOfBirth  DateTime?
+  gender       String?
+  bloodGroup   String?
+  notes        String?
+  createdAt    DateTime  @default(now())
+
+  @@index([userId])
+}
+
+model FeedbackSubmission {
+  id        String   @id @default(uuid())
+  name      String
+  email     String
+  category  String   // "CONTENT_ACCURACY", "BUG", "SUGGESTION", "PROVIDER_REPORT"
+  message   String
+  rating    Int      @default(5)
+  status    String   @default("PENDING") // PENDING, REVIEWED, RESOLVED
+  adminNote String?
+  createdAt DateTime @default(now())
+}
+
+model ContactRequest {
+  id        String   @id @default(uuid())
+  name      String
+  email     String
+  phone     String?
+  subject   String
+  message   String
+  status    String   @default("PENDING") // PENDING, RESPONDED
+  createdAt DateTime @default(now())
+}
+
+model Announcement {
+  id         String   @id @default(uuid())
+  title      String
+  urduTitle  String?
+  message    String
+  urduMessage String?
+  type       String   @default("INFO") // INFO, WARNING, URGENT
+  isActive   Boolean  @default(true)
+  isCritical Boolean  @default(false)
+  link       String?
+  startAt    DateTime @default(now())
+  endAt      DateTime?
+  createdAt  DateTime @default(now())
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  type      String   @default("SYSTEM") // APPOINTMENT, SYSTEM, HEALTH_ALERT
+  isRead    Boolean  @default(false)
+  link      String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action    String
+  resource  String
+  details   String?
+  ipAddress String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+}
+
+model NewsletterSubscription {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  isActive     Boolean  @default(true)
+  subscribedAt DateTime @default(now())
+}

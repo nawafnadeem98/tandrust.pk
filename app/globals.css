@@ -1,0 +1,108 @@
+@import url("https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu:wght@400;700&display=swap");
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --brand-teal: #087F68;
+    --brand-teal-dark: #056653;
+    --brand-navy: #12304A;
+    --brand-blue: #2878B5;
+    --brand-mint: #EAF7F3;
+    --brand-pale-blue: #EFF6FB;
+    --brand-bg: #F7FAFC;
+    --brand-card: #FFFFFF;
+    --brand-text: #183042;
+    --brand-muted: #5B6B78;
+    --brand-border: #DCE6EB;
+    --brand-success: #197548;
+    --brand-warning: #946200;
+    --brand-error: #B42318;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    color: var(--brand-text);
+    background-color: var(--brand-bg);
+  }
+
+  body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Accessible focus indicators */
+  *:focus-visible {
+    outline: 2px solid var(--brand-teal);
+    outline-offset: 2px;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Urdu font rendering */
+.font-urdu {
+  font-family: 'Noto Nastaliq Urdu', 'Jameel Noori Nastaleeq', 'Urdu Typesetting', Arial, sans-serif;
+  line-height: 1.8;
+}
+
+/* tandrust.pk dark-green header (matches logo background) */
+header.tp-header{background:#0A3C39;border-color:rgba(255,255,255,.12)}
+header.tp-header *:not(.bg-white *){color:#fff!important}
+header.tp-header .bg-white{color:#183042!important}
+header.tp-header .bg-brand-bg{background:#082F2D!important;border-color:rgba(255,255,255,.12)!important}
+header.tp-header button.bg-brand-bg{background:rgba(255,255,255,.1)!important;border-color:rgba(255,255,255,.3)!important}
+header.tp-header option{color:#183042!important}
+header.tp-header nav a:hover,header.tp-header a:hover{color:#7CE3B5!important}
+header.tp-header .text-slate-300{color:rgba(255,255,255,.4)!important}
+
+/* city dropdown: dark list with white names so every city is readable */
+header.tp-header select{background-color:#082F2D}
+header.tp-header select option,
+header.tp-header select option:not(.bg-white *){background-color:#0A3C39!important;color:#fff!important}
+/* emergency quick-dial buttons: light zinc, dark bold text, slightly raised for easy reading by older eyes */
+header.tp-header a[href="tel:1122"][href],
+header.tp-header a[href="tel:115"][href]{
+  background:#E4E4E7!important;color:#18181B!important;border:1px solid #A1A1AA!important;
+  font-size:14px;font-weight:800;padding:4px 12px;border-radius:9px;line-height:1.3;
+  box-shadow:0 3px 8px rgba(0,0,0,.35);transition:transform .15s ease,box-shadow .15s ease,background .15s ease}
+header.tp-header a[href="tel:1122"][href]:hover,header.tp-header a[href="tel:115"][href]:hover,
+header.tp-header a[href="tel:1122"][href]:focus-visible,header.tp-header a[href="tel:115"][href]:focus-visible{
+  background:#F4F4F5!important;color:#000!important;transform:translateY(-2px) scale(1.05);box-shadow:0 8px 16px rgba(0,0,0,.45)}
+header.tp-header a[href="tel:1122"][href] *,header.tp-header a[href="tel:115"][href] *{color:inherit!important}
+header.tp-header a[href="/emergency"]{box-shadow:0 3px 8px rgba(0,0,0,.35);transition:transform .15s ease,box-shadow .15s ease}
+header.tp-header a[href="/emergency"]:hover{transform:translateY(-2px) scale(1.04);box-shadow:0 8px 16px rgba(0,0,0,.45)}
+@media (prefers-reduced-motion:reduce){header.tp-header a{transition:none!important}header.tp-header a:hover{transform:none!important}}
+
+/* Urdu: larger, readable, right-to-left */
+html[lang="ur"] body{font-family:'Noto Nastaliq Urdu','Jameel Noori Nastaleeq','Urdu Typesetting','Noto Naskh Arabic',Tahoma,Arial,sans-serif;font-size:1.12rem;line-height:2.1;word-spacing:.1em;text-align:start}
+html[lang="ur"] h1,html[lang="ur"] h2,html[lang="ur"] h3{line-height:1.95}
+html[lang="ur"] input,html[lang="ur"] select,html[lang="ur"] textarea,html[lang="ur"] button{font-family:inherit}
+html[lang="ur"] .text-xs{font-size:.9rem}html[lang="ur"] .text-sm{font-size:1rem}
+/* header: search + language/icon buttons glow softly on hover, colour stays the same */
+@keyframes tpGlow{0%,100%{opacity:.7;filter:drop-shadow(0 0 0 rgba(124,227,181,0))}50%{opacity:1;filter:drop-shadow(0 0 6px rgba(124,227,181,.95))}}
+header.tp-header button.bg-brand-bg:hover,header.tp-header button.bg-brand-bg:focus-visible,
+header.tp-header select:hover,header.tp-header button:hover > svg,header.tp-header a:hover > svg{animation:tpGlow 1.6s ease-in-out infinite}
+@media (prefers-reduced-motion:reduce){header.tp-header *{animation:none!important}}
+
+/* Rescue 1122 / Edhi 115: light zinc, same size and place; glow (not white/black) on hover */
+@keyframes tpZincGlow{0%,100%{box-shadow:0 0 0 rgba(212,212,216,0);opacity:.85}50%{box-shadow:0 0 12px rgba(212,212,216,.7);opacity:1}}
+header.tp-header a[href="tel:1122"][href][class],header.tp-header a[href="tel:115"][href][class]{
+  background:rgba(228,228,231,.08)!important;color:#D4D4D8!important;border:1px solid #A1A1AA!important;box-shadow:none;transform:none}
+header.tp-header a[href="tel:1122"][href][class] *,header.tp-header a[href="tel:115"][href][class] *{color:#D4D4D8!important}
+header.tp-header a[href="tel:1122"][href][class]:hover,header.tp-header a[href="tel:115"][href][class]:hover,
+header.tp-header a[href="tel:1122"][href][class]:focus-visible,header.tp-header a[href="tel:115"][href][class]:focus-visible{
+  background:rgba(228,228,231,.14)!important;color:#D4D4D8!important;transform:none;animation:tpZincGlow 1.5s ease-in-out infinite}
+@media (prefers-reduced-motion:reduce){header.tp-header a[href="tel:1122"],header.tp-header a[href="tel:115"]{animation:none!important}}
