@@ -46,8 +46,14 @@ if [[ "$PULL" -eq 1 ]]; then
     echo "ERROR: $ROOT is not a git repo — cannot --pull"
     exit 1
   fi
-  echo "==> git pull --ff-only..."
-  git -C "$ROOT" pull --ff-only
+  echo "==> git fetch + reset to origin/main..."
+  # Hard reset so leftover untracked copies from rsync/manual deploys
+  # cannot block the update. .env / node_modules / .next stay (gitignored).
+  git -C "$ROOT" fetch --prune origin main
+  git -C "$ROOT" checkout -B main origin/main
+  git -C "$ROOT" reset --hard origin/main
+  git -C "$ROOT" clean -fd --exclude=.env --exclude=.env.* --exclude=node_modules --exclude=.next
+  git -C "$ROOT" branch --set-upstream-to=origin/main main >/dev/null 2>&1 || true
   echo "    now at $(git -C "$ROOT" rev-parse --short HEAD)"
 fi
 
